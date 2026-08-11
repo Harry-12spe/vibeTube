@@ -1,0 +1,18 @@
+[
+  {
+    "id": "21cb0e45-c2e0-496f-828d-8107fe7c1f4b",
+    "name": "Hariom Ray",
+    "email": "hariomkumarrai696@gmail.com",
+    "passwordHash": "8164d67ced9267e8ae7751adf69cc0d8:f4e4d2c84b63093803ed8d9ab0c9d379c9da81862221f83a4433730969e6758281abc16e5ea416df2a3289c17ccda4c7bddc64503efbacd4d50eda3725d0b419",
+    "avatar": "",
+    "createdAt": "2026-08-11T20:29:53.689Z"
+  },
+  {
+    "id": "8fb73a7d-dad6-4162-936c-36214911ccca",
+    "name": "Harry",
+    "email": "harry1512ae@gmail.com",
+    "passwordHash": "6d15d4ecffb6b7445c6e5e77a1c50c42:b426caa487040f7d27ed2b108da3fb7cac6ce48cd89b54132ab810fd5abc9bf66a1fc3ccd103a202e9c37ef06467fc0891e8abdd98e8f69ea05d098c536a8518",
+    "avatar": "",
+    "createdAt": "2026-08-11T20:34:14.915Z"
+  }
+]
