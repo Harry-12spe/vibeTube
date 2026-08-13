@@ -27,22 +27,33 @@ export async function POST(request: Request) {
   try {
     const owner = getSession(request);
     if (!owner) return NextResponse.json({ error: "Sign in before uploading a video." }, { status: 401 });
-    const formData = await request.formData();
-    const file = formData.get("video");
-    if (!(file instanceof File)) return NextResponse.json({ error: "Choose a video file to upload." }, { status: 400 });
-    if (!acceptedVideoTypes.includes(file.type as (typeof acceptedVideoTypes)[number])) return NextResponse.json({ error: "Use an MP4, WebM, or MOV file." }, { status: 415 });
-    if (file.size > localUploadLimit) return NextResponse.json({ error: "Local demo uploads are limited to 500 MB." }, { status: 413 });
+    
+    // Accept JSON from the client-side blob upload
+    const { url, title } = (await request.json()) as { url: string; title: string };
+    if (!url) return NextResponse.json({ error: "Missing video URL." }, { status: 400 });
 
-    const extension = path.extname(file.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".mp4";
-    const objectName = `${Date.now()}-${crypto.randomUUID()}${extension}`;
+    const objectName = url.split('/').pop() || `${Date.now()}-${crypto.randomUUID()}.mp4`;
+    
+    // Ensure catalog directory exists
     await mkdir(uploadDirectory(), { recursive: true });
-    await writeFile(path.join(uploadDirectory(), objectName), Buffer.from(await file.arrayBuffer()));
-    const entry: LocalUpload = { id: objectName, url: `/api/media/${objectName}`, title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " "), description: "No description added.", category: "Entertainment", visibility: "PUBLIC", createdAt: new Date().toISOString(), ownerId: owner.id, ownerName: owner.name };
+    
+    const entry: LocalUpload = { 
+      id: objectName, 
+      url: url, // Use the direct blob URL
+      title: title || "Untitled Video", 
+      description: "No description added.", 
+      category: "Entertainment", 
+      visibility: "PUBLIC", 
+      createdAt: new Date().toISOString(), 
+      ownerId: owner.id, 
+      ownerName: owner.name 
+    };
+    
     await writeCatalog([entry, ...(await readCatalog()).filter((item) => item.id !== objectName)]);
 
     return NextResponse.json(entry);
   } catch {
-    return NextResponse.json({ error: "Upload failed. Please try a smaller compatible video." }, { status: 500 });
+    return NextResponse.json({ error: "Upload failed." }, { status: 500 });
   }
 }
 
@@ -67,29 +78,7 @@ export async function PATCH(request: Request) {
     const session = getSession(request);
     if (!session) return NextResponse.json({ error: "Sign in to edit your upload." }, { status: 401 });
     
-    const contentType = request.headers.get("content-type") || "";
-    let update: Partial<LocalUpload> & { id?: string } = {};
-    let thumbUrl: string | undefined = undefined;
-
-    if (contentType.includes("multipart/form-data")) {
-      const formData = await request.formData();
-      update.id = formData.get("id") as string;
-      update.title = formData.get("title") as string;
-      update.description = formData.get("description") as string;
-      update.category = formData.get("category") as string;
-      update.visibility = formData.get("visibility") as string;
-      
-      const thumbFile = formData.get("thumbnail");
-      if (thumbFile instanceof File && thumbFile.size > 0) {
-        const extension = path.extname(thumbFile.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".jpg";
-        const thumbName = `thumb-${Date.now()}-${crypto.randomUUID()}${extension}`;
-        await mkdir(uploadDirectory(), { recursive: true });
-        await writeFile(path.join(uploadDirectory(), thumbName), Buffer.from(await thumbFile.arrayBuffer()));
-        thumbUrl = `/api/media/${thumbName}`;
-      }
-    } else {
-      update = await request.json() as Partial<LocalUpload> & { id?: string };
-    }
+    const update = await request.json() as Partial<LocalUpload> & { id?: string };
 
     if (!update.id) return NextResponse.json({ error: "Missing upload identifier." }, { status: 400 });
     const catalog = await readCatalog();
@@ -103,7 +92,7 @@ export async function PATCH(request: Request) {
       description: update.description?.trim() || catalog[position].description, 
       category: update.category || catalog[position].category, 
       visibility: update.visibility || catalog[position].visibility,
-      thumbnailUrl: thumbUrl || catalog[position].thumbnailUrl 
+      thumbnailUrl: update.thumbnailUrl || catalog[position].thumbnailUrl 
     };
     
     catalog[position] = next; 

@@ -3,6 +3,7 @@
 import { ArrowLeft, CheckCircle2, FileVideo2, Film, LoaderCircle, Play, UploadCloud } from "lucide-react";
 import { ChangeEvent, FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { upload as blobUpload } from "@vercel/blob/client";
 
 type UploadStage = "select" | "uploading" | "details" | "publishing";
 
@@ -32,12 +33,26 @@ export function UploadStudio() {
   const upload = async () => {
     if (!file) { setError("Choose a video first."); return; }
     setStage("uploading"); setError("");
-    const body = new FormData(); body.append("video", file);
+    
     try {
-      const response = await fetch("/api/uploads", { method: "POST", body });
-      const payload = await response.json() as { id?: string; url?: string; error?: string };
-      if (!response.ok || !payload.url) throw new Error(payload.error ?? "Upload failed.");
-      setVideoUrl(payload.url); setUploadId(payload.id ?? ""); setStage("details");
+      const extension = file.name.split('.').pop() || "mp4";
+      const newBlob = await blobUpload(`${Date.now()}-${crypto.randomUUID()}.${extension}`, file, {
+        access: 'public',
+        handleUploadUrl: '/api/blob',
+      });
+      
+      setVideoUrl(newBlob.url);
+      
+      // Still notify our backend to record the partial upload state so we get an ID
+      const body = { url: newBlob.url, title: file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ") };
+      const response = await fetch("/api/uploads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+      const payload = await response.json() as { id?: string; error?: string };
+      
+      setUploadId(payload.id ?? ""); setStage("details");
     } catch (uploadError) {
       setError(uploadError instanceof Error ? uploadError.message : "Upload failed."); setStage("select");
     }
@@ -49,15 +64,26 @@ export function UploadStudio() {
     setStage("publishing"); setError("");
     try {
       if (uploadId) {
-        const body = new FormData();
-        body.append("id", uploadId);
-        body.append("title", title);
-        body.append("description", description);
-        body.append("category", category);
-        body.append("visibility", visibility);
-        if (thumbnail) body.append("thumbnail", thumbnail);
+        let thumbnailUrl = "";
+        if (thumbnail) {
+          const extension = thumbnail.name.split('.').pop() || "jpg";
+          const thumbBlob = await blobUpload(`thumb-${Date.now()}-${crypto.randomUUID()}.${extension}`, thumbnail, {
+            access: 'public',
+            handleUploadUrl: '/api/blob',
+          });
+          thumbnailUrl = thumbBlob.url;
+        }
+
+        const body = JSON.stringify({
+          id: uploadId,
+          title,
+          description,
+          category,
+          visibility,
+          thumbnailUrl
+        });
         
-        const response = await fetch("/api/uploads", { method: "PATCH", body });
+        const response = await fetch("/api/uploads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body });
         if (!response.ok) throw new Error("Video uploaded, but its details could not be saved.");
       }
       window.localStorage.setItem("vibetube-local-upload", JSON.stringify({ title: title.trim(), description: description.trim() || "No description added.", category, visibility, url: videoUrl, filename: file?.name }));
