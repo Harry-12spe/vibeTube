@@ -76,8 +76,14 @@ export function VibePlayer({ src, poster, title, viewerId = "guest", autoPlay = 
     setDuration(video.current.duration); setHasCaptions(video.current.textTracks.length > 0);
     if (saved > 5 && saved < video.current.duration - 10) { video.current.currentTime = saved; setResumeAt(saved); }
   };
+  const handleDoubleClick = (e: React.MouseEvent<HTMLVideoElement>) => {
+    if (!video.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const clickX = e.clientX - rect.left;
+    seek(video.current.currentTime + (clickX < rect.width / 2 ? -10 : 10));
+  };
   return <div className="vibe-player" ref={player}>
-    <video ref={video} poster={poster} autoPlay={autoPlay} preload="metadata" onLoadedMetadata={loaded} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={() => { if (video.current) { setCurrent(video.current.currentTime); window.localStorage.setItem(progressKey, String(video.current.currentTime)); } }} onEnded={() => { window.localStorage.removeItem(progressKey); setPlaying(false); }}>
+    <video ref={video} poster={poster} autoPlay={autoPlay} preload="metadata" onLoadedMetadata={loaded} onDoubleClick={handleDoubleClick} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={() => { if (video.current) { setCurrent(video.current.currentTime); window.localStorage.setItem(progressKey, String(video.current.currentTime)); } }} onEnded={() => { window.localStorage.removeItem(progressKey); setPlaying(false); }}>
       <source src={quality.url} type={quality.url.endsWith(".webm") ? "video/webm" : "video/mp4"} />
       Your browser does not support video playback.
     </video>
