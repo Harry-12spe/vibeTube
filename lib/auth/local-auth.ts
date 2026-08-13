@@ -6,7 +6,7 @@ import { promisify } from "node:util";
 const scrypt = promisify(scryptCallback);
 const sessionCookieName = "vibetube-session";
 const sessionSecret = process.env.AUTH_SECRET || "vibetube-local-development-secret-change-me";
-const dataDirectory = () => path.join(process.cwd(), "data");
+const dataDirectory = () => process.env.VERCEL ? path.join("/tmp", "data") : path.join(process.cwd(), "data");
 const usersPath = () => path.join(dataDirectory(), "users.json");
 
 export type LocalUser = { id: string; name: string; email: string; passwordHash: string; avatar: string; createdAt: string };
