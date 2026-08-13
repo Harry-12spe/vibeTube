@@ -67,7 +67,7 @@ export function VibePlayer({ src, poster, title, viewerId = "guest", autoPlay = 
   const fullscreen = async () => { if (player.current && document.fullscreenElement !== player.current) await player.current.requestFullscreen().catch(() => undefined); else await document.exitFullscreen().catch(() => undefined); };
   const pip = async () => { if (!video.current || !document.pictureInPictureEnabled) return; if (document.pictureInPictureElement) await document.exitPictureInPicture(); else await video.current.requestPictureInPicture(); };
   const changeQuality = (option: VideoQuality) => {
-    if (!video.current || option.url === quality.url) { setSettingsOpen(false); return; }
+    if (!video.current || option.label === quality.label) { setSettingsOpen(false); return; }
     const at = video.current.currentTime; const shouldPlay = !video.current.paused;
     setQuality(option); setSettingsOpen(false);
     window.setTimeout(() => { if (!video.current) return; video.current.currentTime = at; if (shouldPlay) void video.current.play().catch(() => undefined); }, 100);
@@ -90,7 +90,7 @@ export function VibePlayer({ src, poster, title, viewerId = "guest", autoPlay = 
     seek(video.current.currentTime + (clickX < rect.width / 2 ? -10 : 10));
   };
   return <div className="vibe-player" ref={player}>
-    <video ref={video} poster={poster} autoPlay={autoPlay} preload="metadata" onLoadedMetadata={loaded} onDoubleClick={handleDoubleClick} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={() => { if (video.current) { setCurrent(video.current.currentTime); window.localStorage.setItem(progressKey, String(video.current.currentTime)); } }} onEnded={() => { window.localStorage.removeItem(progressKey); setPlaying(false); }}>
+    <video className={`quality-${quality.label}`} ref={video} poster={poster} autoPlay={autoPlay} preload="metadata" onLoadedMetadata={loaded} onDoubleClick={handleDoubleClick} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)} onTimeUpdate={() => { if (video.current) { setCurrent(video.current.currentTime); window.localStorage.setItem(progressKey, String(video.current.currentTime)); } }} onEnded={() => { window.localStorage.removeItem(progressKey); setPlaying(false); }}>
       <source src={quality.url} type={quality.url.endsWith(".webm") ? "video/webm" : "video/mp4"} />
       Your browser does not support video playback.
     </video>
