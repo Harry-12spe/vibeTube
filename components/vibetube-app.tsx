@@ -70,14 +70,6 @@ function Row({ title, subtitle, items, onWatch, onSave }: { title: string; subti
 function PlayerOverlay({ item, onClose, onSaved, viewerId }: { item: ContentItem; onClose: () => void; onSaved: () => void; viewerId: string }) {
   const [liked, setLiked] = useState(false);
   const [subscribed, setSubscribed] = useState(false);
-  const [comment, setComment] = useState("");
-  const [comments, setComments] = useState(["This belongs on the biggest screen you can find.", "The color work in that final sequence is incredible."]);
-  const submit = (event: FormEvent) => {
-    event.preventDefault();
-    if (!comment.trim()) return;
-    setComments((value) => [comment.trim(), ...value]);
-    setComment("");
-  };
   return (
     <div className="watch-overlay" role="dialog" aria-modal="true" aria-label={`Watch ${item.title}`}>
       <div className="watch-shell">
@@ -97,15 +89,10 @@ function PlayerOverlay({ item, onClose, onSaved, viewerId }: { item: ContentItem
             </div>
             <div className="creator-panel">
               <Avatar src={item.avatar} name={item.creator} />
-              <div><h3>{item.creator} <Check size={15} fill="currentColor" /></h3><p>1.2M subscribers</p></div>
+              <div><h3>{item.creator} <Check size={15} fill="currentColor" /></h3></div>
               <button className={subscribed ? "subscribe subscribed" : "subscribe"} onClick={() => setSubscribed(!subscribed)}>{subscribed ? "Subscribed" : "Subscribe"}</button>
             </div>
             <div className="description"><b>{item.type} · {item.genre}</b><p>{item.description}</p><button>Show more <ChevronDown size={15} /></button></div>
-            <section className="comments">
-              <h2>{comments.length + 126} Comments <ChevronDown size={17} /></h2>
-              <form className="comment-form" onSubmit={submit}><Avatar src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&q=80" name="Your profile" size="small" /><input value={comment} onChange={(event) => setComment(event.target.value)} placeholder="Add a comment..." aria-label="Add a comment" /><button type="submit" aria-label="Post comment"><Send size={17} /></button></form>
-              {comments.map((text, index) => <div className="comment" key={`${text}-${index}`}><Avatar src={index % 2 ? item.avatar : "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&q=80"} name="Community member" size="small" /><div><b>{index % 2 ? "@noahfilm" : "@hanalovesmovies"} <span>{index + 1}h ago</span></b><p>{text}</p><button><ThumbsUp size={14} /> {index ? "84" : "1.8K"}</button><button>Reply</button></div></div>)}
-            </section>
           </main>
           <aside className="up-next"><div className="upnext-head"><h2>Up next</h2><label className="autoplay">Autoplay <i /></label></div>{catalog.filter((entry) => entry.id !== item.id).slice(0, 4).map((entry) => <button className="next-card" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} key={entry.id}><img src={entry.image} alt="" /><span><b>{entry.title}</b><small>{entry.creator}</small><small>{entry.views} • {entry.duration}</small></span></button>)}</aside>
         </div>
@@ -125,7 +112,7 @@ export function VibeTubeApp() {
   const [serverUploads, setServerUploads] = useState<ContentItem[]>([]);
   const [publicUploads, setPublicUploads] = useState<ContentItem[]>([]);
   useEffect(() => {
-    const mapUploads = (data: { uploads?: Array<{ id: string; title: string; description: string; category: string; visibility: string; url: string; createdAt: string; ownerName: string }> }) => data.uploads?.map((upload) => ({ id: upload.id, title: upload.title, creator: upload.ownerName, avatar: "", image: hero.image, duration: "Your upload", views: "Just published", year: new Date(upload.createdAt).getFullYear().toString(), genre: upload.category, type: "Video" as const, description: upload.description, badge: upload.visibility, streamUrl: upload.url })) ?? [];
+    const mapUploads = (data: { uploads?: Array<{ id: string; title: string; description: string; category: string; visibility: string; url: string; createdAt: string; ownerName: string; thumbnailUrl?: string }> }) => data.uploads?.map((upload) => ({ id: upload.id, title: upload.title, creator: upload.ownerName, avatar: "", image: upload.thumbnailUrl ?? hero.image, duration: "Your upload", views: "Just published", year: new Date(upload.createdAt).getFullYear().toString(), genre: upload.category, type: (upload.category === "Movie" ? "Movie" : "Video") as any, description: upload.description, badge: upload.visibility, streamUrl: upload.url })) ?? [];
     void Promise.all([fetch("/api/auth", { cache: "no-store" }), fetch("/api/uploads?scope=mine", { cache: "no-store" }), fetch("/api/uploads", { cache: "no-store" })]).then(async ([authResponse, mineResponse, publicResponse]) => {
       const authData = await authResponse.json() as { user: { name: string; email: string; avatar: string } | null };
       setUser(authData.user);
@@ -133,6 +120,9 @@ export function VibeTubeApp() {
       if (publicResponse.ok) setPublicUploads(mapUploads(await publicResponse.json()));
     }).catch(() => undefined);
   }, []);
+  
+  const uploadedMovies = publicUploads.filter(u => u.type === 'Movie');
+  const uploadedVideos = publicUploads.filter(u => u.type !== 'Movie');
   const matches = useMemo(() => query.trim() ? catalog.filter((item) => `${item.title} ${item.creator} ${item.genre} ${item.type}`.toLowerCase().includes(query.toLowerCase())).slice(0, 5) : [], [query]);
   const save = (item: ContentItem) => {
     setSaved((current) => current.includes(item.id) ? current.filter((id) => id !== item.id) : [...current, item.id]);
@@ -176,9 +166,10 @@ export function VibeTubeApp() {
         <div className="main-content">
           {active !== "Home" && <div className="active-view"><p>EXPLORE VIBETUBE</p><h2>{active}</h2><span>Hand-picked stories, creators, and releases tailored to your mood.</span></div>}
           {(serverUploads.length > 0 || latestUpload) && <Row title="Your uploads" subtitle="Only you can see Private and Unlisted videos" items={serverUploads.length ? serverUploads : [latestUpload!]} onWatch={watch} onSave={save} />}
-          {publicUploads.length > 0 && <Row title="Community uploads" subtitle="Public videos from VibeTube creators" items={publicUploads} onWatch={watch} onSave={save} />}
+          {uploadedMovies.length > 0 && <Row title="Movies" subtitle="Uploaded Movies" items={uploadedMovies} onWatch={watch} onSave={save} />}
+          {uploadedVideos.length > 0 && <Row title="Videos" subtitle="Uploaded Videos" items={uploadedVideos} onWatch={watch} onSave={save} />}
           {rows.map((row) => <Row key={row.title} title={row.title} subtitle={row.subtitle} items={row.ids.map(getById)} onWatch={watch} onSave={save} />)}
-          <section className="original-banner"><div><VibeTubeLogo originals /><h2>Stories worth<br /><em>staying for.</em></h2><p>Independent voices. Big-screen ambition.<br />Only on VibeTube.</p><button className="text-link" onClick={() => setActive("Originals")}>Explore originals <ChevronRight size={18} /></button></div><img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1400&q=85" alt="Film crew recording a scene" /></section>
+          <section className="original-banner"><div><VibeTubeLogo originals /><h2>Coming Soon</h2><p>Our original stories are currently in production.<br />Stay tuned.</p><button className="text-link" onClick={() => setActive("Originals")}>Explore originals <ChevronRight size={18} /></button></div><img src="https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1400&q=85" alt="Film crew recording a scene" /></section>
         </div>
       </motion.main>
       <nav className="mobile-nav" aria-label="Mobile navigation">{mobileItems.slice(0, 2).map(({ label, icon: Icon }) => <button key={label} onClick={() => setActive(label)}><Icon size={20} /><span>{label}</span></button>)}<button className="create-round" onClick={() => window.location.assign("/upload")} aria-label="Create upload"><Plus size={25} /></button>{mobileItems.slice(2).map(({ label, icon: Icon }) => <button key={label} onClick={() => setActive(label)}><Icon size={20} /><span>{label}</span></button>)}</nav>

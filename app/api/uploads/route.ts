@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const localUploadLimit = 500 * 1024 * 1024;
-type LocalUpload = { id: string; url: string; title: string; description: string; category: string; visibility: string; createdAt: string; ownerId: string; ownerName: string };
+type LocalUpload = { id: string; url: string; title: string; description: string; category: string; visibility: string; createdAt: string; ownerId: string; ownerName: string; thumbnailUrl?: string; };
 
 const uploadDirectory = () => path.join(process.cwd(), "data", "uploads");
 const catalogPath = () => path.join(uploadDirectory(), "catalog.json");
@@ -66,14 +66,51 @@ export async function PATCH(request: Request) {
   try {
     const session = getSession(request);
     if (!session) return NextResponse.json({ error: "Sign in to edit your upload." }, { status: 401 });
-    const update = await request.json() as Partial<LocalUpload> & { id?: string };
+    
+    const contentType = request.headers.get("content-type") || "";
+    let update: Partial<LocalUpload> & { id?: string } = {};
+    let thumbUrl: string | undefined = undefined;
+
+    if (contentType.includes("multipart/form-data")) {
+      const formData = await request.formData();
+      update.id = formData.get("id") as string;
+      update.title = formData.get("title") as string;
+      update.description = formData.get("description") as string;
+      update.category = formData.get("category") as string;
+      update.visibility = formData.get("visibility") as string;
+      
+      const thumbFile = formData.get("thumbnail");
+      if (thumbFile instanceof File && thumbFile.size > 0) {
+        const extension = path.extname(thumbFile.name).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".jpg";
+        const thumbName = `thumb-${Date.now()}-${crypto.randomUUID()}${extension}`;
+        await mkdir(uploadDirectory(), { recursive: true });
+        await writeFile(path.join(uploadDirectory(), thumbName), Buffer.from(await thumbFile.arrayBuffer()));
+        thumbUrl = `/api/media/${thumbName}`;
+      }
+    } else {
+      update = await request.json() as Partial<LocalUpload> & { id?: string };
+    }
+
     if (!update.id) return NextResponse.json({ error: "Missing upload identifier." }, { status: 400 });
     const catalog = await readCatalog();
     const position = catalog.findIndex((item) => item.id === update.id);
     if (position < 0) return NextResponse.json({ error: "Upload was not found." }, { status: 404 });
     if (catalog[position].ownerId !== session.id) return NextResponse.json({ error: "You can only edit your own uploads." }, { status: 403 });
-    const next = { ...catalog[position], title: update.title?.trim() || catalog[position].title, description: update.description?.trim() || catalog[position].description, category: update.category || catalog[position].category, visibility: update.visibility || catalog[position].visibility };
-    catalog[position] = next; await writeCatalog(catalog);
+    
+    const next: LocalUpload = { 
+      ...catalog[position], 
+      title: update.title?.trim() || catalog[position].title, 
+      description: update.description?.trim() || catalog[position].description, 
+      category: update.category || catalog[position].category, 
+      visibility: update.visibility || catalog[position].visibility,
+      thumbnailUrl: thumbUrl || catalog[position].thumbnailUrl 
+    };
+    
+    catalog[position] = next; 
+    await writeCatalog(catalog);
     return NextResponse.json(next);
-  } catch { return NextResponse.json({ error: "Could not save video details." }, { status: 500 }); }
+  } catch (error) { 
+    console.error("PATCH error", error);
+    return NextResponse.json({ error: "Could not save video details." }, { status: 500 }); 
+  }
 }

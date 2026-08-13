@@ -130,8 +130,8 @@ export const catalog: ContentItem[] = [
 
 export const rows = [
   { title: "Continue watching", subtitle: "Pick up exactly where you left off", ids: ["neon-circuit", "canvas-of-sound", "motion-theory"] },
-  { title: "Trending now", subtitle: "The stories everyone is talking about", ids: ["afterglow", "microcosm", "the-archivist", "monsoon", "paper-airplanes"] },
-  { title: "VibeTube Originals", subtitle: "Made to be felt on a bigger screen", ids: ["last-signal", "the-archivist", "paper-airplanes", "microcosm"] },
+  { title: "Movies (Coming Soon)", subtitle: "The stories everyone is talking about", ids: ["afterglow", "microcosm", "the-archivist", "monsoon", "paper-airplanes"] },
+  { title: "VibeTube Originals (Coming Soon)", subtitle: "Made to be felt on a bigger screen", ids: ["last-signal", "the-archivist", "paper-airplanes", "microcosm"] },
   { title: "Fresh from creators", subtitle: "New perspectives, right now", ids: ["focus-mode", "canvas-of-sound", "soft-focus", "motion-theory"] },
 ];
 
