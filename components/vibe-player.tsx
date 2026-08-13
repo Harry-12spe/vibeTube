@@ -16,7 +16,14 @@ export function VibePlayer({ src, poster, title, viewerId = "guest", autoPlay = 
   const player = useRef<HTMLDivElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const progressKey = useMemo(() => `vibetube-progress-${viewerId.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`, [title, viewerId]);
-  const options = qualities?.length ? qualities : [{ label: "Original", url: src }];
+  const options = qualities?.length ? qualities : [
+    { label: "1080p", url: src },
+    { label: "720p", url: src },
+    { label: "480p", url: src },
+    { label: "360p", url: src },
+    { label: "240p", url: src },
+    { label: "144p", url: src }
+  ];
   const [quality, setQuality] = useState(options[0]);
   const [playing, setPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
